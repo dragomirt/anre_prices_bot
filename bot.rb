@@ -40,7 +40,7 @@ class Bot
     @token = token
     @scheduled_chats = []
 
-    @storage = Storage.new "scheduled_chats.txt"
+    @storage = Storage.new File.expand_path('scheduled_chats.txt', __dir__)
     @scheduled_chats = @storage.get_chats
   end
 
