@@ -199,8 +199,16 @@ end
 
 bot = Bot.new TOKEN
 
-begin
-  bot.run
-rescue Exception => e
-  puts e.message
+
+loop do
+  puts "Spawn bot...!"
+
+  begin
+    bot.run
+  rescue Exception => e
+    puts e.message
+  end
+
+  puts "Sleeping before next run!"
+  sleep(5) # sleep for 5s and back
 end
