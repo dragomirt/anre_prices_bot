@@ -199,4 +199,10 @@ end
 
 bot = Bot.new TOKEN
 
-bot.run
+loop do
+  puts 'Spawn a bot!'
+  bot.run
+
+  puts 'Bot dead ... Sleep for 5 seconds.'
+  sleep(5)
+end
