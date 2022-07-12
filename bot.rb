@@ -199,4 +199,8 @@ end
 
 bot = Bot.new TOKEN
 
-bot.run
+begin
+  bot.run
+rescue Exception => e
+  puts e.message
+end
