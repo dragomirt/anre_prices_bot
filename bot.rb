@@ -142,7 +142,7 @@ class Bot
 
           @storage.save_chats @scheduled_chats
         when Labels::REMOVE_REMINDER
-          @scheduled_chats = @scheduled_chats.delete message.chat.id
+          @scheduled_chats.delete message.chat.id
           @scheduled_chats.uniq!
           @storage.save_chats @scheduled_chats
         else
@@ -199,8 +199,4 @@ end
 
 bot = Bot.new TOKEN
 
-begin
-  bot.run
-rescue
-  puts 'Error :('
-end
+bot.run
