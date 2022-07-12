@@ -1,3 +1,4 @@
 .idea
 .env
 scheduled_chats.txt
+bot.rb.output
