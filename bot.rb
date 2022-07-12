@@ -1,6 +1,6 @@
 require 'rubygems'
 require 'telegram/bot'
-require './price_retriever'
+require_relative './price_retriever'
 require 'rufus-scheduler'
 require 'dotenv'
 
