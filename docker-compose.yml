@@ -4,3 +4,5 @@ services:
     build: .
     command: ruby bot.rb
     restart: always
+    volumes:
+      - .:/usr/src/app
