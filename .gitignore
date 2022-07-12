@@ -2,3 +2,4 @@
 .env
 scheduled_chats.txt
 bot.rb.output
+bot.rb.log
