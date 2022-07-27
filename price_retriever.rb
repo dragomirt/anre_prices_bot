@@ -31,7 +31,7 @@ class PriceRetriever
 
     table = []
 
-    doc.css('.calculator__table>table tr').each do |row|
+    doc.css('.calculator__table>table>tbody>tr').each do |row|
       data = self.pull_fields row
       table.push data
     end
@@ -44,7 +44,7 @@ class PriceRetriever
   def self.pull_fields(row)
 
     # @type [String]
-    date = row.css('td:nth-child(2)').first.content
+    date = row.css('td:nth-child(1)').first.content
 
     # @type [Float]
     price = row.css('.pl_price').first.content.sub(",", ".").to_f

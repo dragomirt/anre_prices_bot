@@ -75,6 +75,10 @@ class Bot
     # @type [Hash{Symbol => String, nil | Float, nil}]
     last_before_last = @petrol_prices[1]
 
+    if latest_petrol_row.nil? || last_before_last.nil?
+      return # ignore method
+    end
+
     # @type [Float]
     diff = latest_petrol_row[:price].to_f - last_before_last[:price].to_f
     diff = diff.truncate 3
@@ -91,6 +95,10 @@ class Bot
     latest_diesel_row = @diesel_prices.first
     # @type [Hash{Symbol => String, nil | Float, nil}]
     last_before_last = @diesel_prices[1]
+
+    if latest_diesel_row.nil? || last_before_last.nil?
+      return # ignore method
+    end
 
     # @type [Float]
     diff = latest_diesel_row[:price].to_f - last_before_last[:price].to_f
@@ -115,27 +123,35 @@ class Bot
     # @type [Telegram::Bot::Client] bot
     Telegram::Bot::Client.run(@token) do |bot|
 
-      kb = [
+      kb_unsubscribed = [
         Telegram::Bot::Types::KeyboardButton.new(text: Labels::PETROL),
         Telegram::Bot::Types::KeyboardButton.new(text: Labels::DIESEL),
         Telegram::Bot::Types::KeyboardButton.new(text: Labels::REMIND_DAILY),
+      ]
+
+      kb_subscribed = [
+        Telegram::Bot::Types::KeyboardButton.new(text: Labels::PETROL),
+        Telegram::Bot::Types::KeyboardButton.new(text: Labels::DIESEL),
         Telegram::Bot::Types::KeyboardButton.new(text: Labels::REMOVE_REMINDER),
       ]
 
-      markup = Telegram::Bot::Types::ReplyKeyboardMarkup.new(keyboard: kb)
+      markup_unsubscribed = Telegram::Bot::Types::ReplyKeyboardMarkup.new(keyboard: kb_unsubscribed)
+      markup_subscribed = Telegram::Bot::Types::ReplyKeyboardMarkup.new(keyboard: kb_subscribed)
 
-      init_scheduler bot, markup
+      init_scheduler bot, markup_subscribed
 
       # @type [Telegram::Bot::Types::Message] message
       bot.listen do |message|
 
+        reply_markup = self.is_subscribed?(chat: message.chat) ? markup_subscribed : markup_unsubscribed
+
         case message.text
         when "/start"
-          bot.api.send_message(chat_id: message.chat.id, text: "Tell me what do you want to know!", reply_markup: markup)
+          bot.api.send_message(chat_id: message.chat.id, text: "Tell me what do you want to know!", reply_markup: reply_markup)
         when Labels::PETROL
-          self.send_petrol_price bot, message.chat.id, markup
+          self.send_petrol_price bot, message.chat.id, reply_markup
         when Labels::DIESEL
-          self.send_diesel_price bot, message.chat.id, markup
+          self.send_diesel_price bot, message.chat.id, reply_markup
         when Labels::REMIND_DAILY
           @scheduled_chats.push message.chat.id
           @scheduled_chats.uniq!
@@ -151,6 +167,14 @@ class Bot
 
       end
     end
+  end
+
+  private
+
+  # @type [Telegram::Bot::Types::Chat] chat:
+  # @return [Boolean]
+  def is_subscribed? (chat:)
+    @scheduled_chats.include? chat.id
   end
 end
 
