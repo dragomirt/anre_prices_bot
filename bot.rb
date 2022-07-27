@@ -54,7 +54,7 @@ class Bot
   def init_scheduler(bot, markup)
     @scheduler = Rufus::Scheduler.new
 
-    @scheduler.cron '00 14 * * *' do
+    @scheduler.cron '00 10 * * *' do
       init_pull # update the values
 
       @scheduled_chats.each { |chat_id|
@@ -83,7 +83,7 @@ class Bot
     diff = latest_petrol_row[:price].to_f - last_before_last[:price].to_f
     diff = diff.truncate 3
 
-    bot.api.send_message(chat_id: chat_id, text: "Petrol: #{latest_petrol_row[:date]} #{latest_petrol_row[:price]} (#{diff.to_s})", reply_markup: markup)
+    bot.api.send_message(chat_id: chat_id, text: "#{self.get_price_emoji(diff)} Petrol: #{latest_petrol_row[:date]} #{latest_petrol_row[:price]} (#{diff.to_s})", reply_markup: markup)
   end
 
   # @param [Telegram::Bot::Client] bot
@@ -104,7 +104,7 @@ class Bot
     diff = latest_diesel_row[:price].to_f - last_before_last[:price].to_f
     diff = diff.truncate 3
 
-    bot.api.send_message(chat_id: chat_id, text: "Diesel: #{latest_diesel_row[:date]} #{latest_diesel_row[:price]} (#{diff.to_s})", reply_markup: markup)
+    bot.api.send_message(chat_id: chat_id, text: "#{self.get_price_emoji(diff)} Diesel: #{latest_diesel_row[:date]} #{latest_diesel_row[:price]} (#{diff.to_s})", reply_markup: markup)
   end
 
   # @return [void]
@@ -175,6 +175,13 @@ class Bot
   # @return [Boolean]
   def is_subscribed? (chat:)
     @scheduled_chats.include? chat.id
+  end
+
+  # Append a small image to ease the readability of the report
+  # @type [Float] price_diff
+  # @return [String]
+  def get_price_emoji (price_diff)
+    price_diff < 0 ? "📉" : "📈"
   end
 end
 
