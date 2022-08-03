@@ -20,7 +20,7 @@ end
 
 class Bot
   attr_writer :token, :petrol_prices, :diesel_prices
-  attr_reader :storage, :scheduled_chats, :scheduler
+  attr_reader :storage, :scheduled_chats, :scheduler, :sessions
 
   # @attr [Array<Hash{Symbol => String, nil | Float, nil}>] petrol_prices
   @petrol_prices = []
@@ -34,6 +34,9 @@ class Bot
   # @attr [Array<Integer>] scheduled_chats
   @scheduled_chats = []
 
+  # @attr [Array<Integer>] sessions
+  @sessions = []
+
   # @attr [Storage, nil] storage
   @storage = nil
 
@@ -42,8 +45,9 @@ class Bot
     @token = token
     @scheduled_chats = []
 
-    @storage = Storage.new File.expand_path('scheduled_chats.txt', __dir__)
+    @storage = Storage.new File.expand_path('scheduled_chats.txt', __dir__), File.expand_path('sessions.txt', __dir__)
     @scheduled_chats = @storage.get_chats
+    @sessions = @storage.get_sessions
   end
 
   def init_pull
@@ -184,6 +188,16 @@ class Bot
         case message.text
         when "/start"
           bot.api.send_message(chat_id: message.chat.id, text: "Tell me what do you want to know!", reply_markup: reply_markup)
+
+          begin
+            @sessions.push message.chat.id
+            @sessions.uniq!
+
+            @storage.save_sessions @sessions
+          rescue StandardError => e
+            puts e.message
+          end
+
         when Labels::PETROL
           self.send_petrol_price bot, message.chat.id, reply_markup
         when Labels::PETROL_TABLE
@@ -235,10 +249,12 @@ class Storage
 
   # @attr [String] file_name
   @file_name = ""
+  @sessions_file_name = ""
 
   # @param [String] file_name
-  def initialize(file_name)
+  def initialize(file_name, sessions_file_name)
     @file_name = file_name
+    @sessions_file_name = sessions_file_name
   end
 
   # @param [Array<Integer>] chats
@@ -249,6 +265,16 @@ class Storage
     end
 
     chats.count
+  end
+
+  # @param [Array<Integer>] sessions
+  # @return [Integer]
+  def save_sessions(sessions)
+    File.open(@sessions_file_name, "w") do |f|
+      sessions.each { |element| f.puts(element) }
+    end
+
+    sessions.count
   end
 
   # @return [Array<Integer>]
@@ -268,6 +294,25 @@ class Storage
     File.foreach(@file_name) { |line| chats.push line.to_i }
 
     chats.uniq
+  end
+
+  # @return [Array<Integer>]
+  def get_sessions
+
+    # @type [Array<Integer>]
+    sessions = []
+
+    if nil == @sessions_file_name
+      return []
+    end
+
+    if false == File.exists?(@sessions_file_name)
+      return []
+    end
+
+    File.foreach(@sessions_file_name) { |line| sessions.push line.to_i }
+
+    sessions.uniq
   end
 end
 

@@ -1,5 +1,6 @@
 .idea
 .env
 scheduled_chats.txt
+sessions.txt
 bot.rb.output
 bot.rb.log
