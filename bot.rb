@@ -10,10 +10,12 @@ Dotenv.load
 TOKEN = ENV["TOKEN"]
 
 module Labels
-  PETROL = "Petrol Price"
-  DIESEL = "Diesel Price"
-  REMIND_DAILY = "Remind me daily"
-  REMOVE_REMINDER = "Dont remind me anymore"
+  PETROL = "⛽️ Petrol Price"
+  PETROL_TABLE = "📊 Petrol Table"
+  DIESEL = "⛽ Diesel Price"
+  DIESEL_TABLE = "📊 Diesel Table"
+  REMIND_DAILY = "⏰ Remind me daily"
+  REMOVE_REMINDER = "❌ Dont remind me anymore"
 end
 
 class Bot
@@ -90,6 +92,22 @@ class Bot
   # @param [String] chat_id
   # @param [Telegram::Bot::Types::ReplyKeyboardMarkup] markup
   # @return [void]
+  def send_petrol_price_table(bot, chat_id, markup)
+    # @type [Array[Hash{Symbol => String, nil | Float, nil}]]
+    petrol_rows = @petrol_prices
+
+    if petrol_rows.empty?
+      return # ignore method
+    end
+
+    table = petrol_rows.each_with_index.map { |row, index| "#{row[:date]}\t\t #{row[:price]} #{get_price_emoji(row[:price].to_f - petrol_rows[index + 1][:price].to_f) unless petrol_rows[index + 1].nil?}" } * "\n" # concat table
+    bot.api.send_message(chat_id: chat_id, text: "*Petrol prices table*\n\n```\n#{table}```", reply_markup: markup, parse_mode: "MarkdownV2")
+  end
+
+  # @param [Telegram::Bot::Client] bot
+  # @param [String] chat_id
+  # @param [Telegram::Bot::Types::ReplyKeyboardMarkup] markup
+  # @return [void]
   def send_diesel_price(bot, chat_id, markup)
     # @type [Hash{Symbol => String, nil | Float, nil}]
     latest_diesel_row = @diesel_prices.first
@@ -105,6 +123,22 @@ class Bot
     diff = diff.truncate 3
 
     bot.api.send_message(chat_id: chat_id, text: "#{self.get_price_emoji(diff)} Diesel: #{latest_diesel_row[:date]} #{latest_diesel_row[:price]} (#{diff.to_s})", reply_markup: markup)
+  end
+
+  # @param [Telegram::Bot::Client] bot
+  # @param [String] chat_id
+  # @param [Telegram::Bot::Types::ReplyKeyboardMarkup] markup
+  # @return [void]
+  def send_diesel_price_table(bot, chat_id, markup)
+    # @type [Array[Hash{Symbol => String, nil | Float, nil}]]
+    diesel_rows = @diesel_prices
+
+    if diesel_rows.empty?
+      return # ignore method
+    end
+
+    table = diesel_rows.each_with_index.map { |row, index| "#{row[:date]}\t\t #{row[:price]} #{get_price_emoji(row[:price].to_f - diesel_rows[index + 1][:price].to_f) unless diesel_rows[index + 1].nil?}" } * "\n" # concat table
+    bot.api.send_message(chat_id: chat_id, text: "*Diesel prices table*\n\n```\n#{table}```", reply_markup: markup, parse_mode: "MarkdownV2")
   end
 
   # @return [void]
@@ -123,20 +157,22 @@ class Bot
     # @type [Telegram::Bot::Client] bot
     Telegram::Bot::Client.run(@token) do |bot|
 
-      kb_unsubscribed = [
-        Telegram::Bot::Types::KeyboardButton.new(text: Labels::PETROL),
-        Telegram::Bot::Types::KeyboardButton.new(text: Labels::DIESEL),
-        Telegram::Bot::Types::KeyboardButton.new(text: Labels::REMIND_DAILY),
+      kb_default = [
+        [
+          Telegram::Bot::Types::KeyboardButton.new(text: Labels::PETROL),
+          Telegram::Bot::Types::KeyboardButton.new(text: Labels::PETROL_TABLE),
+        ],
+        [
+          Telegram::Bot::Types::KeyboardButton.new(text: Labels::DIESEL),
+          Telegram::Bot::Types::KeyboardButton.new(text: Labels::DIESEL_TABLE)
+        ]
       ]
 
-      kb_subscribed = [
-        Telegram::Bot::Types::KeyboardButton.new(text: Labels::PETROL),
-        Telegram::Bot::Types::KeyboardButton.new(text: Labels::DIESEL),
-        Telegram::Bot::Types::KeyboardButton.new(text: Labels::REMOVE_REMINDER),
-      ]
+      kb_unsubscribed = kb_default + [Telegram::Bot::Types::KeyboardButton.new(text: Labels::REMIND_DAILY)]
+      kb_subscribed = kb_default + [Telegram::Bot::Types::KeyboardButton.new(text: Labels::REMOVE_REMINDER)]
 
-      markup_unsubscribed = Telegram::Bot::Types::ReplyKeyboardMarkup.new(keyboard: kb_unsubscribed)
-      markup_subscribed = Telegram::Bot::Types::ReplyKeyboardMarkup.new(keyboard: kb_subscribed)
+      markup_unsubscribed = Telegram::Bot::Types::ReplyKeyboardMarkup.new(keyboard: kb_unsubscribed, resize_keyboard: true)
+      markup_subscribed = Telegram::Bot::Types::ReplyKeyboardMarkup.new(keyboard: kb_subscribed, resize_keyboard: true)
 
       init_scheduler bot, markup_subscribed
 
@@ -150,17 +186,25 @@ class Bot
           bot.api.send_message(chat_id: message.chat.id, text: "Tell me what do you want to know!", reply_markup: reply_markup)
         when Labels::PETROL
           self.send_petrol_price bot, message.chat.id, reply_markup
+        when Labels::PETROL_TABLE
+          self.send_petrol_price_table bot, message.chat.id, reply_markup
         when Labels::DIESEL
           self.send_diesel_price bot, message.chat.id, reply_markup
+        when Labels::DIESEL_TABLE
+          self.send_diesel_price_table bot, message.chat.id, reply_markup
         when Labels::REMIND_DAILY
           @scheduled_chats.push message.chat.id
           @scheduled_chats.uniq!
 
           @storage.save_chats @scheduled_chats
+
+          bot.api.send_message(chat_id: message.chat.id, text: "Now you will be reminded daily at 13:00 GMT+3", reply_markup: markup_subscribed)
         when Labels::REMOVE_REMINDER
           @scheduled_chats.delete message.chat.id
           @scheduled_chats.uniq!
           @storage.save_chats @scheduled_chats
+
+          bot.api.send_message(chat_id: message.chat.id, text: "You won't be reminded anymore :(", reply_markup: markup_unsubscribed)
         else
           # type code here
         end
