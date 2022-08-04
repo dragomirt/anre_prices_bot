@@ -185,42 +185,48 @@ class Bot
 
         reply_markup = self.is_subscribed?(chat: message.chat) ? markup_subscribed : markup_unsubscribed
 
-        case message.text
-        when "/start"
-          bot.api.send_message(chat_id: message.chat.id, text: "Tell me what do you want to know!", reply_markup: reply_markup)
+        if message.instance_of? Telegram::Bot::Types::Message
+          case message.text
+          when "/start"
+            bot.api.send_message(chat_id: message.chat.id, text: "Tell me what do you want to know!", reply_markup: reply_markup)
 
-          begin
-            @sessions.push message.chat.id
-            @sessions.uniq!
+            begin
+              @sessions.push message.chat.id
+              @sessions.uniq!
 
-            @storage.save_sessions @sessions
-          rescue StandardError => e
-            puts e.message
+              @storage.save_sessions @sessions
+            rescue StandardError => e
+              puts e.message
+            end
+
+          when Labels::PETROL
+            self.send_petrol_price bot, message.chat.id, reply_markup
+          when Labels::PETROL_TABLE
+            self.send_petrol_price_table bot, message.chat.id, reply_markup
+          when Labels::DIESEL
+            self.send_diesel_price bot, message.chat.id, reply_markup
+          when Labels::DIESEL_TABLE
+            self.send_diesel_price_table bot, message.chat.id, reply_markup
+          when Labels::REMIND_DAILY
+            @scheduled_chats.push message.chat.id
+            @scheduled_chats.uniq!
+
+            @storage.save_chats @scheduled_chats
+
+            bot.api.send_message(chat_id: message.chat.id, text: "Now you will be reminded daily at 13:00 GMT+3", reply_markup: markup_subscribed)
+          when Labels::REMOVE_REMINDER
+            @scheduled_chats.delete message.chat.id
+            @scheduled_chats.uniq!
+            @storage.save_chats @scheduled_chats
+
+            bot.api.send_message(chat_id: message.chat.id, text: "You won't be reminded anymore :(", reply_markup: markup_unsubscribed)
+          else
+            # type code here
           end
+        end
 
-        when Labels::PETROL
-          self.send_petrol_price bot, message.chat.id, reply_markup
-        when Labels::PETROL_TABLE
-          self.send_petrol_price_table bot, message.chat.id, reply_markup
-        when Labels::DIESEL
-          self.send_diesel_price bot, message.chat.id, reply_markup
-        when Labels::DIESEL_TABLE
-          self.send_diesel_price_table bot, message.chat.id, reply_markup
-        when Labels::REMIND_DAILY
-          @scheduled_chats.push message.chat.id
-          @scheduled_chats.uniq!
-
-          @storage.save_chats @scheduled_chats
-
-          bot.api.send_message(chat_id: message.chat.id, text: "Now you will be reminded daily at 13:00 GMT+3", reply_markup: markup_subscribed)
-        when Labels::REMOVE_REMINDER
-          @scheduled_chats.delete message.chat.id
-          @scheduled_chats.uniq!
-          @storage.save_chats @scheduled_chats
-
-          bot.api.send_message(chat_id: message.chat.id, text: "You won't be reminded anymore :(", reply_markup: markup_unsubscribed)
-        else
-          # type code here
+        if message.instance_of? Telegram::Bot::Types::ChatMemberUpdated
+          bot.api.send_message(chat_id: message.chat.id, text: "Glad to be a part of the group!", reply_markup: markup_unsubscribed)
         end
 
       end
