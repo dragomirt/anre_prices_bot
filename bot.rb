@@ -226,7 +226,11 @@ class Bot
         end
 
         if message.instance_of? Telegram::Bot::Types::ChatMemberUpdated
-          bot.api.send_message(chat_id: message.chat.id, text: "Glad to be a part of the group!", reply_markup: markup_unsubscribed)
+          begin
+            bot.api.send_message(chat_id: message.chat.id, text: "Glad to be a part of the group!", reply_markup: markup_unsubscribed)
+          rescue Telegram::Bot::Exceptions::ResponseError => e
+            puts e.message
+          end
         end
 
       end
