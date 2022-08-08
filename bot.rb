@@ -71,6 +71,17 @@ class Bot
   end
 
   # @param [Telegram::Bot::Client] bot
+  # @param [Telegram::Bot::Types::ReplyKeyboardMarkup] markup
+  def force_schedule(bot, markup)
+    init_pull # update the values
+
+    @scheduled_chats.each { |chat_id|
+      self.send_petrol_price bot, chat_id, markup
+      self.send_diesel_price bot, chat_id, markup
+    }
+  end
+
+  # @param [Telegram::Bot::Client] bot
   # @param [String] chat_id
   # @param [Telegram::Bot::Types::ReplyKeyboardMarkup] markup
   # @return [void]
@@ -89,7 +100,7 @@ class Bot
     diff = latest_petrol_row[:price].to_f - last_before_last[:price].to_f
     diff = diff.truncate 3
 
-    bot.api.send_message(chat_id: chat_id, text: "#{self.get_price_emoji(diff)} Petrol: #{latest_petrol_row[:date]} #{latest_petrol_row[:price]} (#{diff.to_s})", reply_markup: markup)
+    send_message(bot, chat_id: chat_id, text: "#{self.get_price_emoji(diff)} Petrol: #{latest_petrol_row[:date]} #{latest_petrol_row[:price]} (#{diff.to_s})", reply_markup: markup)
   end
 
   # @param [Telegram::Bot::Client] bot
@@ -105,7 +116,8 @@ class Bot
     end
 
     table = petrol_rows.each_with_index.map { |row, index| "#{row[:date]}\t\t #{row[:price]} #{get_price_emoji(row[:price].to_f - petrol_rows[index + 1][:price].to_f) unless petrol_rows[index + 1].nil?}" } * "\n" # concat table
-    bot.api.send_message(chat_id: chat_id, text: "*Petrol prices table*\n\n```\n#{table}```", reply_markup: markup, parse_mode: "MarkdownV2")
+
+    send_message(bot, chat_id: chat_id, text: "*Petrol prices table*\n\n```\n#{table}```", reply_markup: markup, parse_mode: "MarkdownV2")
   end
 
   # @param [Telegram::Bot::Client] bot
@@ -126,7 +138,7 @@ class Bot
     diff = latest_diesel_row[:price].to_f - last_before_last[:price].to_f
     diff = diff.truncate 3
 
-    bot.api.send_message(chat_id: chat_id, text: "#{self.get_price_emoji(diff)} Diesel: #{latest_diesel_row[:date]} #{latest_diesel_row[:price]} (#{diff.to_s})", reply_markup: markup)
+    send_message(bot, chat_id: chat_id, text: "#{self.get_price_emoji(diff)} Diesel: #{latest_diesel_row[:date]} #{latest_diesel_row[:price]} (#{diff.to_s})", reply_markup: markup)
   end
 
   # @param [Telegram::Bot::Client] bot
@@ -142,7 +154,7 @@ class Bot
     end
 
     table = diesel_rows.each_with_index.map { |row, index| "#{row[:date]}\t\t #{row[:price]} #{get_price_emoji(row[:price].to_f - diesel_rows[index + 1][:price].to_f) unless diesel_rows[index + 1].nil?}" } * "\n" # concat table
-    bot.api.send_message(chat_id: chat_id, text: "*Diesel prices table*\n\n```\n#{table}```", reply_markup: markup, parse_mode: "MarkdownV2")
+    send_message(bot, chat_id: chat_id, text: "*Diesel prices table*\n\n```\n#{table}```", reply_markup: markup, parse_mode: "MarkdownV2")
   end
 
   # @return [void]
@@ -159,7 +171,7 @@ class Bot
     puts "Running the BOT! ..."
 
     # @type [Telegram::Bot::Client] bot
-    Telegram::Bot::Client.run(@token) do |bot|
+    Telegram::Bot::Client.run(@token, logger: Logger.new("logs.log")) do |bot|
 
       kb_default = [
         [
@@ -190,7 +202,7 @@ class Bot
           begin
             case message.text
             when "/start"
-              bot.api.send_message(chat_id: message.chat.id, text: "Tell me what do you want to know!", reply_markup: reply_markup)
+              send_message(bot, chat_id: message.chat.id, text: "Tell me what do you want to know!", reply_markup: reply_markup)
 
               @sessions.push message.chat.id
               @sessions.uniq!
@@ -211,13 +223,13 @@ class Bot
 
               @storage.save_chats @scheduled_chats
 
-              bot.api.send_message(chat_id: message.chat.id, text: "Now you will be reminded daily at 13:00 GMT+3", reply_markup: markup_subscribed)
+              send_message(bot, chat_id: message.chat.id, text: "Now you will be reminded daily at 13:00 GMT+3", reply_markup: markup_subscribed)
             when Labels::REMOVE_REMINDER
               @scheduled_chats.delete message.chat.id
               @scheduled_chats.uniq!
               @storage.save_chats @scheduled_chats
 
-              bot.api.send_message(chat_id: message.chat.id, text: "You won't be reminded anymore :(", reply_markup: markup_unsubscribed)
+              send_message(bot, chat_id: message.chat.id, text: "You won't be reminded anymore :(", reply_markup: markup_unsubscribed)
             else
               # type code here
             end
@@ -228,11 +240,7 @@ class Bot
         end
 
         if message.instance_of? Telegram::Bot::Types::ChatMemberUpdated
-          begin
-            bot.api.send_message(chat_id: message.chat.id, text: "Glad to be a part of the group!", reply_markup: markup_unsubscribed)
-          rescue Telegram::Bot::Exceptions::ResponseError => e
-            puts e.message
-          end
+          send_message(bot, chat_id: message.chat.id, text: "Glad to be a part of the group!", reply_markup: markup_unsubscribed)
         end
 
       end
@@ -252,6 +260,20 @@ class Bot
   # @return [String]
   def get_price_emoji (price_diff)
     price_diff < 0 ? "📉" : "📈"
+  end
+
+  # @type [Telegram::Bot::Client] bot
+  # @type [Integer] chat_id
+  # @type [String] text:
+  # @type [Telegram::Bot::Types::ReplyKeyboardMarkup] reply_markup:
+  # @type [String] parse_mode:
+  # @return [Telegram::Bot::Types::Message]
+  def send_message (bot, chat_id:, text:, reply_markup:, parse_mode: "")
+    begin
+      return bot.api.send_message(chat_id: chat_id, text: text, reply_markup: reply_markup, parse_mode: parse_mode)
+    rescue Telegram::Bot::Exceptions::ResponseError => e
+      bot.logger.error(e.message)
+    end
   end
 end
 
