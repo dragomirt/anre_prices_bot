@@ -16,6 +16,7 @@ module Labels
   DIESEL_TABLE = "📊 Diesel Table"
   REMIND_DAILY = "⏰ Remind me daily"
   REMOVE_REMINDER = "❌ Dont remind me anymore"
+  CONTACT_DEVELOPER = "👨🏻‍💻 Contact the developer"
 end
 
 class Bot
@@ -187,6 +188,9 @@ class Bot
       kb_unsubscribed = kb_default + [Telegram::Bot::Types::KeyboardButton.new(text: Labels::REMIND_DAILY)]
       kb_subscribed = kb_default + [Telegram::Bot::Types::KeyboardButton.new(text: Labels::REMOVE_REMINDER)]
 
+      kb_unsubscribed += [Telegram::Bot::Types::KeyboardButton.new(text: Labels::CONTACT_DEVELOPER)]
+      kb_subscribed += [Telegram::Bot::Types::KeyboardButton.new(text: Labels::CONTACT_DEVELOPER)]
+
       markup_unsubscribed = Telegram::Bot::Types::ReplyKeyboardMarkup.new(keyboard: kb_unsubscribed, resize_keyboard: true)
       markup_subscribed = Telegram::Bot::Types::ReplyKeyboardMarkup.new(keyboard: kb_subscribed, resize_keyboard: true)
 
@@ -230,8 +234,11 @@ class Bot
               @storage.save_chats @scheduled_chats
 
               send_message(bot, chat_id: message.chat.id, text: "You won't be reminded anymore :(", reply_markup: markup_unsubscribed)
+            when Labels::CONTACT_DEVELOPER
+              text = "<b>Dragomir Țurcanu</b>\n<a href='https://dragomirt.com/'>dragomirt.com</a>"
+              send_message(bot, chat_id: message.chat.id, text: text, reply_markup: reply_markup, parse_mode: 'HTML')
             else
-              # type code here
+              send_message(bot, chat_id: message.chat.id, text: 'Unknown query. Please use commands from the actions keyboard.', reply_markup: reply_markup)
             end
 
           rescue Telegram::Bot::Exceptions::ResponseError => e
