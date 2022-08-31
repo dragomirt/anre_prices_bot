@@ -6,12 +6,28 @@ services:
     restart: always
     volumes:
       - .:/usr/src/app
+
+  downloader:
+    build: .
+    command: ruby page_downloader.rb --run
+    restart: always
+    volumes:
+      - .:/usr/src/app
     network_mode: "service:gluetun"
+    healthcheck:
+      test: [ "CMD", "curl", "ifconfig.me" ]
+      interval: 2m
+      timeout: 10s
+      retries: 10
+      start_period: 5s
     depends_on:
-      - gluetun
+      gluetun:
+        condition: service_healthy
+
   gluetun:
     image: qmcgaw/gluetun
     container_name: gluetun
+    restart: always
     # line above must be uncommented to allow external containers to connect. See https://github.com/qdm12/gluetun/wiki/Connect-a-container-to-gluetun#external-container-to-gluetun
     cap_add:
       - NET_ADMIN

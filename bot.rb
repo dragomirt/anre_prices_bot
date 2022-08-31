@@ -1,6 +1,7 @@
 require 'rubygems'
 require 'telegram/bot'
 require_relative './price_retriever'
+require_relative './page_downloader'
 require 'rufus-scheduler'
 require 'dotenv'
 
@@ -52,8 +53,8 @@ class Bot
   end
 
   def init_pull
-    @petrol_prices = PriceRetriever.get_petrol_prices
-    @diesel_prices = PriceRetriever.get_diesel_prices
+    @petrol_prices = PageDownloader.get_petrol_table
+    @diesel_prices = PageDownloader.get_diesel_table
   end
 
   # @param [Telegram::Bot::Client] bot

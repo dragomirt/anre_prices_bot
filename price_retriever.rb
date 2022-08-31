@@ -3,6 +3,7 @@ require 'faraday/net_http'
 require 'nokogiri'
 require 'date'
 
+Faraday.default_adapter = :net_http
 class PriceRetriever
 
   attr_reader :base_url, :petrol_price_uri, :diesel_price_uri
