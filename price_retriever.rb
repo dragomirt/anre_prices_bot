@@ -6,7 +6,7 @@ require 'date'
 class PriceRetriever
 
   attr_reader :base_url, :petrol_price_uri, :diesel_price_uri
-  @@base_url = "https://www.anre.md/"
+  @@base_url = "https://anre.md/"
   @@petrol_price_uri = "benzina-95-3-2"
   @@diesel_price_uri = "motorina-3-3"
 
